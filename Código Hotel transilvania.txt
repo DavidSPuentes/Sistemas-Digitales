@@ -1,0 +1,139 @@
+#include "mbed.h"
+#include <cstring> 
+
+UnbufferedSerial ps(PB_10, PB_11); //Primer HC-05
+UnbufferedSerial pt(PA_2, PA_3); // Segundo HC-05
+
+int main() {
+
+    //Velocidad de transmision de los modulos:
+    pt.baud(9600); 
+    ps.baud(9600);    
+
+    thread_sleep_for(10000);  // Delay de 10 segundos para conectar
+
+    // Llegada para el usuario
+    const char* mb = "Bienvenido a nuestro Hotel Transilvania\r\n"; 
+    ps.write(mb, strlen(mb));
+
+    // Guardado de las contraseñas y cuartos
+    char ha[4];  // Lugar para tres caracteres y un lugar sin usar
+    char cl[5];  // Lugar para cuatro caracteres y un lugar sin usar
+    char hd[3][4]; // Limite de tres cuartos guardados
+    char cs[3][5]; // Lugar para guardar las contraseñas
+
+    // Cuartos y su asigmación
+    for (int i = 0; i < 3; i++) { 
+        const char* mh = "Proporcione el cuarto que va a asignar:\r\n";
+        ps.write(mh, strlen(mh));
+        
+        // Lectura del numero del cuarto
+        for (int j = 0; j < 3; j++) {
+            ps.read(&ha[j], 1);  // Lectura de un caracter del cuarto
+            ps.write(&ha[j], 1); // Eco del caracter puesto
+        }
+        //Termina la cadena
+        ha[3] = '\0'; 
+        
+        // Almacenar el cuarto en el arreglo
+        strcpy(hd[i], ha);
+
+        // Confirmación del caracter que pertenece al cuarto
+        const char* mc = "\r\nCuarto apartado: ";
+        ps.write(mc, strlen(mc));
+        ps.write(ha, strlen(ha));
+        ps.write("\r\n", 2);
+
+        // Puesta de la contraseña
+        const char* mc2 = "Cree una contraseña de 4 digitos:\r\n";
+        ps.write(mc2, strlen(mc2));
+
+        // Lectura de la contraseña
+        for (int k = 0; k < 4; k++) {
+            ps.read(&cl[k], 1);  // Leer un carácter de la contraseña
+            ps.write(&cl[k], 1); // Eco del caracter ingresado
+        }
+        //Termina la cadena
+        cl[4] = '\0'; 
+        
+        // Afirmar la contraseña puesta
+        const char* mc3 = "\r\nContraseña: ";
+        ps.write(mc3, strlen(mc3));
+        ps.write(cl, strlen(cl));
+        ps.write("\r\n", 2);
+
+        // Guardar la contraseña en el arreglo
+        strcpy(cs[i], cl);
+    }
+
+    // Enviar disponibilidad de habitaciones al teléfono
+    const char* md = "Cuartos disponibles:\r\n";
+    pt.write(md, strlen(md));
+
+    for (int i = 0; i < 3; i++) {
+        pt.write(hd[i], strlen(hd[i]));
+        pt.write("\r\n", 2);
+    }
+
+    // Módulo para elegir cuartos y poner contraseña
+    while (true) {
+        const char* ms = "Escoja un cuarto para poner la clave:\r\n";
+        pt.write(ms, strlen(ms));
+
+        // Lectura del número del cuarto en el android
+        char sh[4];  // Guardar elección de ciarto
+        for (int i = 0; i < 3; i++) {
+            pt.read(&sh[i], 1); // Lectura de caracter
+            pt.write(&sh[i], 1); // Eco del carecter puesto
+        }
+        //Termina la cadena
+        sh[3] = '\0'; 
+
+        // Afirmar cuarto escogido
+        const char* mcs = "\r\nCuarto seleccionado: ";
+        pt.write(mcs, strlen(mcs));
+        pt.write(sh, strlen(sh));
+        pt.write("\r\n", 2);
+
+        // reconfirmar cuarto elegido
+        bool he = false;
+        int ih = -1; // Indice del cuarto encontrada
+        for (int i = 0; i < 3; i++) {
+            if (strcmp(sh, hd[i]) == 0) { // Revisar si son identicos
+                he = true;
+                ih = i; // Almacenar indice del cuarto encontrada
+                break;
+            }
+        }
+
+        if (!he) {
+            const char* me = "El cuarto no se encontró, intente de nuevo:\r\n";
+            pt.write(me, strlen(me));
+            continue; // pedir otra vez la eleccion
+        }
+
+        // Pedir contraseña
+        const char* mc4 = "Ingrese la contraseña:\r\n";
+        pt.write(mc4, strlen(mc4));
+
+        // Lectura de la contraseña
+        char ci[5]; // Guardar contraseña metida
+        for (int k = 0; k < 4; k++) {
+            pt.read(&ci[k], 1); // Lectura de un caracter
+            pt.write(&ci[k], 1); // Eco
+        }
+        //Termina la cadena
+        ci[4] = '\0'; 
+
+        // Confirmar la contraseña metida
+        if (strcmp(ci, cs[ih]) == 0) {
+            const char* mc5 = "\r\nLa contraseña es correcta, puedes acceder.\r\n";
+            pt.write(mc5, strlen(mc5));
+        } else {
+            const char* mc6 = "\r\nLa contraseña es incorrecta, no puedes acceder.\r\n";
+            pt.write(mc6, strlen(mc6));
+        }
+    }
+
+    return 0;
+}
